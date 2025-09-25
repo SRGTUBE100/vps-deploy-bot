@@ -285,9 +285,11 @@ async def send_to_logs(message):
 @bot.tree.command(name="deploy", description="🚀 [ADMIN] Create a new cloud instance for a user")
 @app_commands.describe(
     user="The user to deploy for",
-    os="The OS to deploy (ubuntu, debian, alpine, arch, kali, fedora)"
+    os="The OS to deploy (ubuntu, debian, alpine, arch, kali, fedora)",
+    ram="Amount of RAM to allocate (e.g., 2g, 4g, 512m)",
+    disk="Disk size to allocate (e.g., 10g, 20g)"
 )
-async def deploy(interaction: discord.Interaction, user: discord.User, os: str):
+async def deploy(interaction: discord.Interaction, user: discord.User, os: str, ram: str, disk: str):
     try:
         if not await is_admin_role_only(interaction):
             embed = discord.Embed(
@@ -311,7 +313,7 @@ async def deploy(interaction: discord.Interaction, user: discord.User, os: str):
             return
 
         os_data = OS_OPTIONS[os]
-        
+
         # Initial response with loading animation
         embed = discord.Embed(
             title=f"🚀 Launching {os_data['emoji']} {os_data['name']} Instance",
@@ -320,28 +322,34 @@ async def deploy(interaction: discord.Interaction, user: discord.User, os: str):
         )
         embed.add_field(
             name="🛠️ System Info",
-            value=f"```RAM: {RAM_LIMIT}\nAuto-Delete: 4h Inactivity```",
+            value=f"```RAM: {ram}\nDisk: {disk}\nAuto-Delete: 4h Inactivity```",
             inline=False
         )
         embed.set_footer(text="This may take 1-2 minutes...")
-        
+
         await interaction.response.send_message(embed=embed)
         msg = await interaction.original_response()
 
         # Animate the loading process
         await animate_message("Initializing Deployment", embed, DEPLOY_ANIMATION, 3)
 
-        try:  
+        try:
             # Step 1: Container creation
             embed.clear_fields()
             embed.description = "```diff\n+ Pulling container image from repository...\n```"
             await msg.edit(embed=embed)
-            
+
+            # Run docker with custom RAM and disk
             container_id = subprocess.check_output(
-                ["docker", "run", "-itd", "--privileged", os_data["image"]]
-            ).strip().decode('utf-8')  
-            
-            await send_to_logs(f"🔧 {interaction.user.mention} deployed {os_data['emoji']} {os_data['name']} for {user.mention} (ID: `{container_id[:12]}`)")
+                [
+                    "docker", "run", "-itd", "--privileged",
+                    "--memory", ram,
+                    "--storage-opt", f"size={disk}",
+                    os_data["image"]
+                ]
+            ).strip().decode('utf-8')
+
+            await send_to_logs(f"🔧 {interaction.user.mention} deployed {os_data['emoji']} {os_data['name']} for {user.mention} (ID: `{container_id[:12]}`) | RAM: {ram}, Disk: {disk}")
             
             # Step 2: SSH setup
             embed.description = "```diff\n+ Configuring SSH access and security...\n```"
