@@ -12,7 +12,7 @@ import time
 
 # Configuration
 TOKEN = ''  # REPLACE WITH YOUR BOT'S TOKEN
-RAM_LIMIT = '2g'
+RAM_LIMIT = '4g'
 SERVER_LIMIT = 12
 LOGS_CHANNEL_ID = 123456789    # CHANGE TO YOUR LOGS CHANNEL ID
 ADMIN_ROLE_ID = 123456789     # CHANGE TO YOUR ADMIN ROLE ID
@@ -285,10 +285,9 @@ async def send_to_logs(message):
 @bot.tree.command(name="deploy", description="🚀 [ADMIN] Create a new cloud instance for a user")
 @app_commands.describe(
     user="The user to deploy for",
-    os="The OS to deploy (ubuntu, debian, alpine, arch, kali, fedora)",
-    ram="Amount of RAM in GB (e.g., 2, 4, 8). Default: 2"
+    os="The OS to deploy (ubuntu, debian, alpine, arch, kali, fedora)"
 )
-async def deploy(interaction: discord.Interaction, user: discord.User, os: str, ram: int = 2):
+async def deploy(interaction: discord.Interaction, user: discord.User, os: str):
     try:
         if not await is_admin_role_only(interaction):
             embed = discord.Embed(
@@ -311,19 +310,8 @@ async def deploy(interaction: discord.Interaction, user: discord.User, os: str, 
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        # RAM validation
-        if ram < 1 or ram > 16:
-            embed = discord.Embed(
-                title="❌ Invalid RAM",
-                description="Please enter a RAM value between 1 and 16 GB.",
-                color=0xFF0000
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-
         os_data = OS_OPTIONS[os]
-        ram_limit_str = f"{ram}g"
-
+        
         # Initial response with loading animation
         embed = discord.Embed(
             title=f"🚀 Launching {os_data['emoji']} {os_data['name']} Instance",
@@ -332,7 +320,7 @@ async def deploy(interaction: discord.Interaction, user: discord.User, os: str, 
         )
         embed.add_field(
             name="🛠️ System Info",
-            value=f"```RAM: {ram_limit_str}\nAuto-Delete: 4h Inactivity```",
+            value=f"```RAM: {RAM_LIMIT}\nAuto-Delete: 4h Inactivity```",
             inline=False
         )
         embed.set_footer(text="This may take 1-2 minutes...")
@@ -350,12 +338,8 @@ async def deploy(interaction: discord.Interaction, user: discord.User, os: str, 
             await msg.edit(embed=embed)
             
             container_id = subprocess.check_output(
-                [
-                    "docker", "run", "-itd", "--privileged",
-                    "--memory", ram_limit_str,
-                    os_data["image"]
-                ]
-            ).strip().decode('utf-8') 
+                ["docker", "run", "-itd", "--privileged", os_data["image"]]
+            ).strip().decode('utf-8')  
             
             await send_to_logs(f"🔧 {interaction.user.mention} deployed {os_data['emoji']} {os_data['name']} for {user.mention} (ID: `{container_id[:12]}`)")
             
