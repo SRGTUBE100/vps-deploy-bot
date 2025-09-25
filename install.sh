@@ -54,7 +54,6 @@ else
     run_cmd "Updating repository" "cd /opt/vps-deploy-bot && git pull"
 fi
 
-cd /opt/vps-deploy-bot
 run_cmd "Installing Python modules" "pip install --upgrade pip && pip install discord.py docker psutil"
 
 run_cmd "Building Debian Docker image" "docker build -t debian-vps -f Dockerfile.debian ."
